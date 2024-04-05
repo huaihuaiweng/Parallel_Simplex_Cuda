@@ -30,39 +30,46 @@ int main(int argc, char** argv) {
     ss >> curr;
 
     // Moving matrix from file to vector
-    std::vector<std::vector<double>> tableau_cpu(nRow, std::vector<double>(nCol, 0.0));
-    for (int i = 0; i < nRow; ++i) {
+    // std::vector<std::vector<double>> tableau_cpu(nRow, std::vector<double>(nCol, 0.0));
+    double* tableau_cpu = (double*) malloc(nRow * nCol * sizeof(double));
+    // for (int i = 0; i < nRow; ++i) {
+    //     std::getline(tableau_file, line);
+    //     std::stringstream ss(line);
+    //     for (int j = 0; j < nCol; ++j) {
+    //         ss >> curr;
+    //         tableau_cpu[i][j] = std::stod(curr);
+    //     }
+    // }
+
+     for (int i = 0; i < nRow; ++i) {
         std::getline(tableau_file, line);
         std::stringstream ss(line);
         for (int j = 0; j < nCol; ++j) {
             ss >> curr;
-            tableau_cpu[i][j] = std::stod(curr);
+            double val = stod(curr);
+            tableau_cpu[i * nCol + j] = val;
         }
     }
 
     // Now, print vector to check that it is loaded into memory.
-    std::cout << "{";
-    for (const auto& row: tableau_cpu) {
-        std::cout << "{";
-        for (const double& num: row) {
-            std::cout << num << " ";
-        }
-        std::cout << "}";
-        std::cout << std::endl;
-    }
-    std::cout << "}";
+    // std::cout << "{";
+    // for (const auto& row: tableau_cpu) {
+    //     std::cout << "{";
+    //     for (const double& num: row) {
+    //         std::cout << num << " ";
+    //     }
+    //     std::cout << "}";
+    //     std::cout << std::endl;
+    // }
+    // std::cout << "}";
 
     cudaMalloc((void**)&tableau_gpu, nRow * nCol * sizeof(double));
-    for (int i = 0; i < nRow; ++i) {
-        
-    }
-    cudaMemcpy(tableau_gpu, tableau_cpu.)
+    cudaMemCpy(tableau_gpu, tableau_cpu2, nRow * nCol * sizeof(double), cudaMemCpyHostToDevice);
 
 
 
-
-
-    Compare_Max max = findMaxObjective(tableau, nRow, nCol);
+    Compare_Max max = findMaxObjective(tableau_gpu, nRow, nCol);
+    print(max);
     
 }
 

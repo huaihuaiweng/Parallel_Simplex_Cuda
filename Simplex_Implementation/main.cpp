@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     //     }
     // }
     
-    std::vector<std::vector<double>> tableau_cpu(nRow, std::vector<double>(nCol, 0.0));
+    std::vector<std::vector<double> > tableau_cpu(nRow, std::vector<double>(nCol, 0.0));
     for (int i = 0; i < nRow; ++i) {
         std::getline(tableau_file, line);
         std::stringstream ss(line);
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
             std::cout << curr  << std::endl;
             ss >> curr;
             double val = stod(curr);
-            tableau_cpu2[i * nRow + j] = val;
+            tableau_cpu2[i * nCol + j] = val;
             tableau_cpu[i][j] = val;
         }
     }
@@ -62,15 +62,15 @@ int main(int argc, char** argv) {
     for (int i = 0; i < nRow; ++i) {
         std::cout << "{";
         for (int j = 0; j < nCol; ++j) {
-            std::cout << tableau_cpu2[i * nRow + j] << " ";
+            std::cout << tableau_cpu2[i * nCol + j] << " ";
         }
         std::cout << "}" << std::endl;
     }
     std::cout << "}" << std::endl;
 
 
-
-    
+    cudaMalloc((void**)&tableau_gpu, nRow*nCol * sizeof(double));
+    cudaMemCpy(tableau_gpu, tableau_cpu2, nRow * nCol * sizeof(double), cudaMemCpyHostToDevice);
     
 
     
