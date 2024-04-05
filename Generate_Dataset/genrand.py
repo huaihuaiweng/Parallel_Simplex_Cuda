@@ -22,14 +22,3 @@ def genrand(m, n, d):
     ppl = np.block([[A, np.eye(m), b.reshape(-1,1)], [f, np.zeros((1, m+1))]])
 
     return ppl, f, A, b
-
-
-# Example usage
-# m = 5  # Number of constraints
-# n = 4  # Number of variables
-# d = 0.5  # Density of the constraint matrix
-# ppl, f, A, b = genrand(m, n, d)
-# print("PPL:", ppl)
-# print("f:", f)
-# print("A:", A)
-# print("b:", b)

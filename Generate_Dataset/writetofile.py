@@ -29,6 +29,7 @@ np.set_printoptions(suppress=True)
 
 ppl, f, A, b = genrand(m, n, d)
 print(ppl)
+
 np.savetxt(fname=output, X=ppl, delimiter=' ', newline='\n', fmt='%f')
 
 
