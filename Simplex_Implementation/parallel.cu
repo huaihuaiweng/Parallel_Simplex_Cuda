@@ -1,5 +1,11 @@
 #include <cuda.h>
-double **tableau;
+#include <fstream>
+#include <vector>
+#include <iostream>
+#include <string>
+#include <sstream>
+
+std::vector<std::vector<double>> tableu;
 
 struct Compare_Max {
     double val = 0;
@@ -7,7 +13,24 @@ struct Compare_Max {
 };
 
 int main(int argc, char** argv) {
-    int nRow, nCol;
+    int nRow, nCol, density;
+    ifstream tableau_file(argv[1]);
+    // Getting the row/col lengths
+    std::string line;
+    getline(tableau_file, line);
+    stringstream ss(line);
+    std::string curr;
+
+    ss >> curr;
+    nRow = std::stoi(curr)
+    ss >> curr;
+    nCol = std::stoi(curr);
+    ss >> curr;
+    density = std::stoi(curr);
+    ss >> curr;
+
+
+
     Compare_Max max = findMaxObjective(tableau, nRow, nCol);
     
 }
