@@ -4,7 +4,10 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#define NUM_THREADS = 256
+#include <thrust/extrema.h>
+#include <thrust/execution_policy.h>
+
+#define NUM_THREADS 256
 
 double* tableau_gpu;
 int blks;
@@ -14,6 +17,34 @@ struct Compare_Max {
     double val = 0;
     int index = -1;
 };
+
+// __device__ static double atomicMax(double* address, double val)
+// {
+//     int* address_as_i = (int*) address;
+//     int old = *address_as_i, assumed;
+//     do {
+//         assumed = old;
+//         old = ::atomicCAS(address_as_i, assumed,
+//             __double_as_int(::fmaxf(val, __int_as_double(assumed))));
+//     } while (assumed != old);
+//     return __int_as_double(old);
+// }
+
+
+// __global__ void findMaxObjectiveKernel(double *tableau, int nRow, int nCol, Compare_Max *max) {
+//     int j = threadIdx.x + blockIdx.x * blockDim.x;
+//     int arr_size = nRow * nCol;
+//     if (j < arr_size) {
+//         double val = tableau[j];
+//         if (val < 0.0) {
+//             val = -val;
+//             atomicMax(&(max->val), val);
+//             if (max->val == val) {
+//                 max->index = j;
+//             }
+//         }
+//     }
+// }
 
 int main(int argc, char** argv) {
     int nRow, nCol;
@@ -66,33 +97,36 @@ int main(int argc, char** argv) {
     // std::cout << "}";
 
     cudaMalloc((void**)&tableau_gpu, nRow * nCol * sizeof(double));
-    cudaMemCpy(tableau_gpu, tableau_cpu2, nRow * nCol * sizeof(double), cudaMemCpyHostToDevice);
+    cudaMemcpy(tableau_gpu, tableau_cpu, nRow * nCol * sizeof(double), cudaMemcpyHostToDevice);
 
     // Launch kernel
-    Compare_Max max;
-    blks = (nCol * nRow + NUM_THREADS - 1) / NUM_THREADS;
-    findMaxObjectiveKernel<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, max);
+    // Compare_Max* d_max; // Device pointer for Compare_Max
+    // Compare_Max h_max; // Host Compare_Max, to set initial values
 
-  
-    print(max->val);
+    // h_max.val = 0;
+    // h_max.index = -1;
+
+    // Allocate memory on the device for Compare_Max
+    // cudaMalloc((void**)&d_max, sizeof(Compare_Max));
+
+    // Copy the initialized Compare_Max from host to device
+    // cudaMemcpy(d_max, &h_max, sizeof(Compare_Max), cudaMemcpyHostToDevice);
+
+    blks = (nCol * nRow + NUM_THREADS - 1) / NUM_THREADS;
+    // findMaxObjectiveKernel<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, d_max);
+    double* min = thrust::min_element(thrust::host, tableau_cpu, tableau_cpu+(nCol * nRow - 1));
+
+    // cudaMemcpy(&h_max, d_max, sizeof(Compare_Max), cudaMemcpyDeviceToHost);
+    // std::cout << max->index << std::endl;
+    // Now you can access the results on the host
+    std::cout << "Min value: " << min << std::endl;
+    // std::cout << "Index of max value: " << h_max.index << std::endl;
+
     
 }
 
 
-__global__ void findMaxObjectiveKernel(double *tableau, int nRow, int nCol, Compare_Max *max) {
-    int j = threadIdx.x + blockIdx.x * blockDim.x;
-    int arr_size = nRow * nCol;
-    if (j < size) {
-        double val = tableau[j];
-        if (val < 0.0) {
-            val = -val;
-            atomicMax(&(max->val), val);
-            if (max->val == val) {
-                max->index = j;
-            }
-        }
-    }
-}
+
 
 // Compare_Max findMaxObjective(double *tableau, int nRow, int nCol) {
 //     Compare_Max max;
