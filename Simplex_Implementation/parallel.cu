@@ -5,7 +5,8 @@
 #include <string>
 #include <sstream>
 
-std::vector<std::vector<double>> tableu;
+double* tableau_gpu;
+
 
 struct Compare_Max {
     double val = 0;
@@ -13,21 +14,51 @@ struct Compare_Max {
 };
 
 int main(int argc, char** argv) {
-    int nRow, nCol, density;
-    ifstream tableau_file(argv[1]);
+    int nRow, nCol;
+    std::ifstream tableau_file(argv[1]);
+    std::cout << "argv[1]: " << argv[1] << std::endl;
+
     // Getting the row/col lengths
     std::string line;
-    getline(tableau_file, line);
-    stringstream ss(line);
+    std::getline(tableau_file, line);
+    std::stringstream ss(line);
     std::string curr;
-
     ss >> curr;
-    nRow = std::stoi(curr)
+    nRow = std::stoi(curr);
     ss >> curr;
     nCol = std::stoi(curr);
     ss >> curr;
-    density = std::stoi(curr);
-    ss >> curr;
+
+    // Moving matrix from file to vector
+    std::vector<std::vector<double>> tableau_cpu(nRow, std::vector<double>(nCol, 0.0));
+    for (int i = 0; i < nRow; ++i) {
+        std::getline(tableau_file, line);
+        std::stringstream ss(line);
+        for (int j = 0; j < nCol; ++j) {
+            ss >> curr;
+            tableau_cpu[i][j] = std::stod(curr);
+        }
+    }
+
+    // Now, print vector to check that it is loaded into memory.
+    std::cout << "{";
+    for (const auto& row: tableau_cpu) {
+        std::cout << "{";
+        for (const double& num: row) {
+            std::cout << num << " ";
+        }
+        std::cout << "}";
+        std::cout << std::endl;
+    }
+    std::cout << "}";
+
+    cudaMalloc((void**)&tableau_gpu, nRow * nCol * sizeof(double));
+    for (int i = 0; i < nRow; ++i) {
+        
+    }
+    cudaMemcpy(tableau_gpu, tableau_cpu.)
+
+
 
 
 
