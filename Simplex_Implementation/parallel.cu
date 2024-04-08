@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <thrust/extrema.h>
+#include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
 #define NUM_THREADS 256
@@ -98,7 +99,25 @@ int main(int argc, char** argv) {
 
     cudaMalloc((void**)&tableau_gpu, nRow * nCol * sizeof(double));
     cudaMemcpy(tableau_gpu, tableau_cpu, nRow * nCol * sizeof(double), cudaMemcpyHostToDevice);
+    // Find the minimum value in the last row
+    // After copying the data to device memory (tableau_gpu)
+    thrust::device_vector<double> d_tableau(tableau_gpu, tableau_gpu + (nRow * nCol));
 
+    // Pointing to the start of the last row
+    auto start = d_tableau.begin() + (nRow - 1) * nCol;
+    auto end = d_tableau.begin() + nRow * nCol;
+
+    // Finding the minimum element in the last row
+    auto min_iter = thrust::min_element(start, end);
+
+    // Calculating the index of the minimum element in the last row
+    int min_index = min_iter - start;
+
+    // Dereferencing the iterator to get the minimum value
+    double min_value = *min_iter;
+
+    std::cout << "Min value in the last row: " << min_value << std::endl;
+    std::cout << "Index of min value in the last row: " << min_index << std::endl;
     // Launch kernel
     // Compare_Max* d_max; // Device pointer for Compare_Max
     // Compare_Max h_max; // Host Compare_Max, to set initial values
@@ -114,12 +133,12 @@ int main(int argc, char** argv) {
 
     blks = (nCol * nRow + NUM_THREADS - 1) / NUM_THREADS;
     // findMaxObjectiveKernel<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, d_max);
-    double* min = thrust::min_element(thrust::host, tableau_cpu, tableau_cpu+(nCol * nRow - 1));
+    // double* min = thrust::min_element(thrust::host, tableau_cpu, tableau_cpu+(nCol * nRow - 1));
 
     // cudaMemcpy(&h_max, d_max, sizeof(Compare_Max), cudaMemcpyDeviceToHost);
     // std::cout << max->index << std::endl;
     // Now you can access the results on the host
-    std::cout << "Min value: " << min << std::endl;
+    // std::cout << "Min value: " << min << std::endl;
     // std::cout << "Index of max value: " << h_max.index << std::endl;
 
     
