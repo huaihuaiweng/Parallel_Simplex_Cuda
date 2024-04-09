@@ -140,6 +140,8 @@ int main(int argc, char** argv) {
     cudaMalloc((void**)&count_gpu, 1 * sizeof(unsigned int));
     cudaMalloc((void**)&ratios_gpu, (nRow - 1) * sizeof(double));
     cudaMalloc((void**)&count2_gpu, 1 * sizeof(unsigned int*));
+    count2_cpu = (unsigned int*) malloc(sizeof(unsigned int*));
+    count_cpu = (unsigned int*)malloc(sizeof(unsigned int));
     //
     // Start of step 3:
     do {
@@ -149,7 +151,6 @@ int main(int argc, char** argv) {
         initDoubleArrayToInf<<<blks, NUM_THREADS>>>(ratios_gpu, nRow - 1);
         calcRatio<<<blks, NUM_THREADS>>>(tableau_gpu, ratios_gpu, count_gpu, pivot_col_idx, nCol, nRow);
         std::cout << "Test Step3:#1" << std::endl;
-        count_cpu = (unsigned int*)malloc(sizeof(unsigned int));
         cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
         if (*count_cpu == nRow - 1) {
             std::cout << "There is no solution. Ending program..." << std::endl;
@@ -193,10 +194,8 @@ int main(int argc, char** argv) {
             }
             std::cout << std::endl;
         }
-
-        // ?cudaMalloc((void**)&count2_gpu, 1 * sizeof(unsigned int*));
         cudaMemset(count2_gpu, 0, sizeof(unsigned int));
-        count2_cpu = (unsigned int*) malloc(sizeof(unsigned int*));
+        
         updateObjectiveFunction<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx, count2_gpu);
         cudaDeviceSynchronize();
         cudaMemcpy(count2_cpu, count2_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
@@ -229,7 +228,7 @@ int main(int argc, char** argv) {
             std::cout << std::endl;
         }
         std::cout << "count2: " << *count2_cpu << std::endl;
-    } while (count2_cpu != 0);
+    } while (*count2_cpu != 0);
 
     std::cout << "Finished Algorithm:" << std::endl;
 }
