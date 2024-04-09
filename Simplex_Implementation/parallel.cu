@@ -27,13 +27,13 @@ __global__ void initDoubleArrayToInf(double *arr, int n) {
 }
 
 
-__global__ void calcRatio(double* tableau_gpu, double* ratios_gpu, unsigned int* count_gpu, int pivot_column_idx, int nCol, int nRow) {
+__global__ void calcRatio(double* tableau_gpu, double* ratios_gpu, unsigned int* count_gpu, int pivot_col_idx, int nCol, int nRow) {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
     if (tid >= nRow - 1) {
         return;
     }
     int last_column = nCol - 1;
-    double pivot_column_val = tableau_gpu[tid * nCol + pivot_column_idx];
+    double pivot_column_val = tableau_gpu[tid * nCol + pivot_col_idx];
     if (pivot_column_val > 0.0) {
         ratios_gpu[tid] = tableau_gpu[tid * nCol + last_column] / pivot_column_val;
     } else {
@@ -42,13 +42,28 @@ __global__ void calcRatio(double* tableau_gpu, double* ratios_gpu, unsigned int*
 }
 
 // Step 4
-__global__ void updateAllColumnsInPivotRow(double* tableau_gpu, int pivot_row_idx, int pivot_col_index, int nCol) {
+__global__ void updateAllColumnsInPivotRow(double* tableau_gpu, int pivot_row_idx, int pivot_col_idx, int nCol) {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
     if (tid >= nCol) {
         return;
     }
-    double pivot = tableau_gpu[pivot_row_idx * nCol + pivot_col_index];
+    double pivot = tableau_gpu[pivot_row_idx * nCol + pivot_col_idx];
     tableau_gpu[pivot_row_idx * nCol + tid] = tableau_gpu[pivot_row_idx * nCol + tid] / pivot;
+}
+
+// Step 5
+__global__ void performRowOperations(double* tableau_gpu, int nRow, int nCol, int pivot_row_idx, int pivot_col_idx) {
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    // Convert the tid into a row and column component
+    int thread_row = tid / nCol;
+    int thread_col = tid % nCol;
+
+    // Handles the case when your tid is on the pivot row.
+    if (tid >= (nRow - 1) * nCol || thread_row == pivot_row_idx) {
+        return;
+    }
+    int pivot2 = -tableau[thread_row * nCol + pivot_col_idx];
+    tableau_gpu[thread_row * nCol + thread_col] += pivot2 * tableau_gpu[pivot_row_idx * nCol + thread_col];
 }
 
 int main(int argc, char** argv) {
@@ -94,13 +109,13 @@ int main(int argc, char** argv) {
     auto min_iter = thrust::min_element(start, end);
 
     // Calculating the index of the minimum element in the last row
-    int pivot_column_idx = min_iter - start;
+    int pivot_col_idx = min_iter - start;
 
     // Dereferencing the iterator to get the minimum value
     double min_value = *min_iter;
 
     std::cout << "Min value in the last row: " << min_value << std::endl;
-    std::cout << "Index of min value in the last row: " << pivot_column_idx << std::endl;
+    std::cout << "Index of min value in the last row: " << pivot_col_idx << std::endl;
 
     blks = (nCol * nRow + NUM_THREADS - 1) / NUM_THREADS;
 
@@ -110,7 +125,7 @@ int main(int argc, char** argv) {
     cudaMalloc((void**)&ratios_gpu, (nRow - 1) * sizeof(double));
     // cudaMemset((void*)ratios_gpu, HUGE_VAL, (nRow - 1) * sizeof(double));
     initDoubleArrayToInf<<<blks, NUM_THREADS>>>(ratios_gpu, nRow - 1);
-    calcRatio<<<blks, NUM_THREADS>>>(tableau_gpu, ratios_gpu, count_gpu, pivot_column_idx, nCol, nRow);
+    calcRatio<<<blks, NUM_THREADS>>>(tableau_gpu, ratios_gpu, count_gpu, pivot_col_idx, nCol, nRow);
     std::cout << "Test Step3:#1" << std::endl;
     count_cpu = (unsigned int*)malloc(sizeof(unsigned int));
     cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
@@ -129,10 +144,10 @@ int main(int argc, char** argv) {
     
     std::cout << "Test Step3:#3" << std::endl;
     // Step 4:
-    updateAllColumnsInPivotRow<<<blks, NUM_THREADS>>>(tableau_gpu, pivot_row_idx, pivot_column_idx, nCol);
+    updateAllColumnsInPivotRow<<<blks, NUM_THREADS>>>(tableau_gpu, pivot_row_idx, pivot_col_idx, nCol);
     cudaDeviceSynchronize();
 
-    std::cout << "pivot_column_idx : " << pivot_column_idx << std::endl;
+    std::cout << "pivot_col_idx : " << pivot_col_idx << std::endl;
     std::cout << "pivot_row_idx : " << pivot_row_idx << std::endl;
     std::cout << "min_ratio_val : " << min_ratio_val << std::endl;
 
@@ -146,5 +161,8 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
     }
 }
+
+performRowOperations<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx);
+cudaDeviceSynchronize();
 
 
