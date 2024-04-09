@@ -9,8 +9,11 @@
 #include <thrust/extrema.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
+#include <chrono> // Include chrono for timing
 
-#define NUM_THREADS 256
+
+#define NUM_THREADS 8200
+// #define DEBUG_MODE // Uncomment this line to enable debug mode
 
 double* tableau_gpu;
 double* ratios_gpu;
@@ -130,10 +133,12 @@ int main(int argc, char** argv) {
 
     // Dereferencing the iterator to get the minimum value
     double min_value = *min_iter;
-
+    
+    #ifdef DEBUG_MODE
     std::cout << "Min value in the last row: " << min_value << std::endl;
     std::cout << "Index of min value in the last row: " << pivot_col_idx << std::endl;
-
+    #endif
+    
     blks = (nCol * nRow + NUM_THREADS - 1) / NUM_THREADS;
     //
     // Initial cudaMalloc for all steps
@@ -144,13 +149,14 @@ int main(int argc, char** argv) {
     count_cpu = (unsigned int*)malloc(sizeof(unsigned int));
     //
     // Start of step 3:
+    auto start_time = std::chrono::high_resolution_clock::now(); // Start timing
     do {
         // Create a count variable that can be accessed by each CUDA thread.
         cudaMemset(count_gpu, 0, sizeof(unsigned int));
         // Create an array that stores the ratio of each element of last column of the tableau with the pivot column.
         initDoubleArrayToInf<<<blks, NUM_THREADS>>>(ratios_gpu, nRow - 1);
         calcRatio<<<blks, NUM_THREADS>>>(tableau_gpu, ratios_gpu, count_gpu, pivot_col_idx, nCol, nRow);
-        std::cout << "Test Step3:#1" << std::endl;
+        // std::cout << "Test Step3:#1" << std::endl;
         cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
         if (*count_cpu == nRow - 1) {
             std::cout << "There is no solution. Ending program..." << std::endl;
@@ -162,20 +168,20 @@ int main(int argc, char** argv) {
         auto ratio_end = d_ratios.begin() + (nRow - 1);
         auto min_ratio_iter = thrust::min_element(ratio_start, ratio_end);
         int pivot_row_idx = min_ratio_iter - ratio_start;
-        std::cout << "Test Step3:#2" << std::endl;
+        // std::cout << "Test Step3:#2" << std::endl;
         double min_ratio_val = *min_ratio_iter;
         
-        std::cout << "Test Step3:#3" << std::endl;
+        // std::cout << "Test Step3:#3" << std::endl;
         // Step 4:
         updateAllColumnsInPivotRow<<<blks, NUM_THREADS>>>(tableau_gpu, pivot_row_idx, pivot_col_idx, nCol);
         cudaDeviceSynchronize();
+        cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
 
+        #ifdef DEBUG_MODE
         std::cout << "pivot_col_idx : " << pivot_col_idx << std::endl;
         std::cout << "pivot_row_idx : " << pivot_row_idx << std::endl;
         std::cout << "min_ratio_val : " << min_ratio_val << std::endl;
-
         std::cout << "Updated matrix" << std::endl;
-        cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
         for (int i = 0; i < nRow; ++i){
             std::cout << i << " -th row ";
             for (int j = 0; j < nCol; ++j){
@@ -183,10 +189,13 @@ int main(int argc, char** argv) {
             }
             std::cout << std::endl;
         }
+        #endif
+        
         performRowOperations<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx);
         cudaDeviceSynchronize();
-        std::cout << "Updated matrix after step5" << std::endl;
         cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
+        #ifdef DEBUG_MODE
+        std::cout << "Updated matrix after step5" << std::endl;
         for (int i = 0; i < nRow; ++i){
             std::cout << i << " -th row ";
             for (int j = 0; j < nCol; ++j){
@@ -194,6 +203,8 @@ int main(int argc, char** argv) {
             }
             std::cout << std::endl;
         }
+        #endif
+
         cudaMemset(count2_gpu, 0, sizeof(unsigned int));
         
         updateObjectiveFunction<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx, count2_gpu);
@@ -214,11 +225,11 @@ int main(int argc, char** argv) {
 
         // Dereferencing the iterator to get the minimum value
         min_value = *min_obj_iter;
+        cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
 
-        
+        #ifdef DEBUG_MODE
         std::cout << "After step6: Min value in the last row: " << min_value << std::endl;
         std::cout << "After step6: Index of min value in the last row: " << pivot_col_idx << std::endl;
-        cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
         std::cout << "Updated matrix after step6" << std::endl;
         for (int i = 0; i < nRow; ++i){
             std::cout << i << "-th row ";
@@ -228,9 +239,24 @@ int main(int argc, char** argv) {
             std::cout << std::endl;
         }
         std::cout << "count2: " << *count2_cpu << std::endl;
+        #endif
     } while (*count2_cpu != 0);
 
     std::cout << "Finished Algorithm:" << std::endl;
+    auto finish_time = std::chrono::high_resolution_clock::now(); // End timing
+    std::chrono::duration<double> elapsed_time = finish_time - start_time; // Calculate elapsed time
+    
+    std::cout << "Final Result: " << std::endl;
+    for (int i = 0; i < nRow; ++i){
+            std::cout << i << "-th row ";
+            for (int j = 0; j < nCol; ++j){
+                std::cout << tableau_cpu[i * nCol + j] << " "; 
+            }
+            std::cout << std::endl;
+        }
+    std::cout << "count2: " << *count2_cpu << std::endl;
+    std::cout << "Elapsed time: " << elapsed_time.count() << " seconds\n"; // Display elapsed time
+
 }
 
 
