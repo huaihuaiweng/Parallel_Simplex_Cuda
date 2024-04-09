@@ -65,6 +65,7 @@
         "vector": "cpp",
         "algorithm": "cpp",
         "__verbose_abort": "cpp",
-        "charconv": "cpp"
+        "charconv": "cpp",
+        "filesystem": "cpp"
     }
 }

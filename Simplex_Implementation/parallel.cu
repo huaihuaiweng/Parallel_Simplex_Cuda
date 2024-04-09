@@ -96,9 +96,21 @@ int main(int argc, char** argv) {
     cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
     if (count_cpu == nRow - 1) {
         std::cout << "There is no solution. Ending program..." << std::endl;
+        return -1;
     }
-
+    // If there was a solution, the GPU will continue working.
+    thrust::device_vector<double> d_ratios(ratios_gpu, ratios_gpu + (nRow - 1))
+    auto ratios_start = d_ratios.begin()
+    auto ratio_end = d_ratios.begin() + (nRow - 1);
+    auto min_ratio_iter = thrust::min_element(ratios_start, ratio_end);
+    int pivot_row_idx = min_ratio_iter - ratio_start;
+    double min_ratio_val = *min_ratio_iter;
     
+
+
+
+
+
 
 
 
