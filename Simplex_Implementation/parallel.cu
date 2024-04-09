@@ -62,7 +62,7 @@ __global__ void performRowOperations(double* tableau_gpu, int nRow, int nCol, in
     if (tid >= (nRow - 1) * nCol || thread_row == pivot_row_idx) {
         return;
     }
-    int pivot2 = -tableau[thread_row * nCol + pivot_col_idx];
+    double pivot2 = -tableau_gpu[thread_row * nCol + pivot_col_idx];
     tableau_gpu[thread_row * nCol + thread_col] += pivot2 * tableau_gpu[pivot_row_idx * nCol + thread_col];
 }
 
@@ -160,9 +160,18 @@ int main(int argc, char** argv) {
         }
         std::cout << std::endl;
     }
-}
+    performRowOperations<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx);
+    cudaDeviceSynchronize();
+    std::cout << "Updated matrix after step5" << std::endl;
+    cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < nRow; ++i){
+        std::cout << i << " -th row ";
+        for (int j = 0; j < nCol; ++j){
+            std::cout << tableau_cpu[i * nCol + j] << " "; 
+        }
+        std::cout << std::endl;
+    }
 
-performRowOperations<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx);
-cudaDeviceSynchronize();
+}
 
 
