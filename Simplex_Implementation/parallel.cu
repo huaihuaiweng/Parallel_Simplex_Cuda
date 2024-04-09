@@ -70,14 +70,15 @@ __global__ void performRowOperations(double* tableau_gpu, int nRow, int nCol, in
 
 // Step 6
 // Potentially you can combine Step 5 and Step 6 for potential speedups.
-__global__ updateObjectiveFunction(double* tableau_gpu, int nRow, int nCol, int pivot_row_idx, pivot_col_idx, unsigned int count2_gpu) {
+__global__ void updateObjectiveFunction(double* tableau_gpu, int nRow, int nCol, int pivot_row_idx, int pivot_col_idx, unsigned int* count2_gpu) {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
     if (tid >= nCol) {
         return;
     }
-    double pivot3 = -tableau[(nRow - 1) * nCol + pivot_col_idx];
+    double pivot3 = -tableau_gpu[(nRow - 1) * nCol + pivot_col_idx];
     tableau_gpu[(nRow - 1) * nCol + tid] += pivot3 * tableau_gpu[pivot_row_idx * nCol + tid];
     if ((tid < nCol - 1) && tableau_gpu[(nRow - 1) * (nCol) + tid] < 0.0) {
+        printf("%d \n", tid);
         atomicInc(count2_gpu, nCol - 1);
     }
 }
@@ -136,7 +137,8 @@ int main(int argc, char** argv) {
     blks = (nCol * nRow + NUM_THREADS - 1) / NUM_THREADS;
 
     // Create a count variable that can be accessed by each CUDA thread.
-    cudaMalloc((void**)&count_gpu, 1 * sizeof(int));
+    cudaMalloc((void**)&count_gpu, 1 * sizeof(unsigned int));
+    cudaMemset(count_gpu, 0, sizeof(unsigned int));
     // Create an array that stores the ratio of each element of last column of the tableau with the pivot column.
     cudaMalloc((void**)&ratios_gpu, (nRow - 1) * sizeof(double));
     // cudaMemset((void*)ratios_gpu, HUGE_VAL, (nRow - 1) * sizeof(double));
@@ -189,9 +191,10 @@ int main(int argc, char** argv) {
     }
 
     cudaMalloc((void**)&count2_gpu, 1 * sizeof(unsigned int*));
+    cudaMemset(count2_gpu, 0, sizeof(unsigned int));
     count2_cpu = (unsigned int*) malloc(sizeof(unsigned int*));
     updateObjectiveFunction<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx, count2_gpu);
-
+    cudaDeviceSynchronize();
     cudaMemcpy(count2_cpu, count2_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
     // Find the minimum value in the last row after copying the data to device memory (tableau_gpu)
     thrust::device_vector<double> d_obj_tableau(tableau_gpu, tableau_gpu + (nRow * nCol));
@@ -209,9 +212,19 @@ int main(int argc, char** argv) {
     // Dereferencing the iterator to get the minimum value
     min_value = *min_obj_iter;
 
-    std::cout << "count2: " << count2 << std::endl;
+    
     std::cout << "After step6: Min value in the last row: " << min_value << std::endl;
     std::cout << "After step6: Index of min value in the last row: " << pivot_col_idx << std::endl;
+    cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
+    std::cout << "Updated matrix after step6" << std::endl;
+    for (int i = 0; i < nRow; ++i){
+        std::cout << i << "-th row ";
+        for (int j = 0; j < nCol; ++j){
+            std::cout << tableau_cpu[i * nCol + j] << " "; 
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "count2: " << *count2_cpu << std::endl;
 
 }
 
