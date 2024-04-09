@@ -21,7 +21,7 @@ int* count_cpu
 
 __global__ void calcRatio(double* tableau_gpu, double* ratios_gpu, int* count_gpu, int pivot_column_idx, int nCol) {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid >= nRow -1) {
+    if (tid >= nRow - 1) {
         return;
     }
     int last_column = nCol - 1;
@@ -31,6 +31,16 @@ __global__ void calcRatio(double* tableau_gpu, double* ratios_gpu, int* count_gp
     } else {
         atomicInc(count_gpu, nRows);
     }
+}
+
+// Step 4
+__global__ void updateAllColumnsInPivotRow(double* tableau_gpu, int pivot_row_idx, int pivot_col_index, int nCol) {
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tid >= nCol) {
+        return;
+    }
+    double pivot = tableau_gpu[pivot_row_idx * nCol + pivot_column_idx];
+    tableau_gpu[pivot_row_idx * nCol + tid] = tableau_gpu[pivot_row_idx * nCol + tid] / pivot;
 }
 
 int main(int argc, char** argv) {
@@ -105,7 +115,12 @@ int main(int argc, char** argv) {
     auto min_ratio_iter = thrust::min_element(ratios_start, ratio_end);
     int pivot_row_idx = min_ratio_iter - ratio_start;
     double min_ratio_val = *min_ratio_iter;
-    
+
+    // Step 4:
+    updateAllColumnsInPivotRow<<<blks, NUM_THREADS>>>(tableau_gpu, pivot_row_idx, pivot_column_idx, nCol);
+    cudaDeviceSynchronize();
+
+
 
 
 
