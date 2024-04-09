@@ -17,6 +17,8 @@ double* ratios_gpu;
 int blks;
 unsigned int* count_gpu;
 unsigned int* count_cpu;
+unsigned int* count2_gpu;
+unsigned int* count2_cpu;
 
 
 __global__ void initDoubleArrayToInf(double *arr, int n) {
@@ -64,6 +66,20 @@ __global__ void performRowOperations(double* tableau_gpu, int nRow, int nCol, in
     }
     double pivot2 = -tableau_gpu[thread_row * nCol + pivot_col_idx];
     tableau_gpu[thread_row * nCol + thread_col] += pivot2 * tableau_gpu[pivot_row_idx * nCol + thread_col];
+}
+
+// Step 6
+// Potentially you can combine Step 5 and Step 6 for potential speedups.
+__global__ updateObjectiveFunction(double* tableau_gpu, int nRow, int nCol, int pivot_row_idx, pivot_col_idx, unsigned int count2_gpu) {
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tid >= nCol) {
+        return;
+    }
+    double pivot3 = -tableau[(nRow - 1) * nCol + pivot_col_idx];
+    tableau_gpu[(nRow - 1) * nCol + tid] += pivot3 * tableau_gpu[pivot_row_idx * nCol + tid];
+    if ((tid < nCol - 1) && tableau_gpu[(nRow - 1) * (nCol) + tid] < 0.0) {
+        atomicInc(count2_gpu, nCol - 1);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -171,6 +187,31 @@ int main(int argc, char** argv) {
         }
         std::cout << std::endl;
     }
+
+    cudaMalloc((void**)&count2_gpu, 1 * sizeof(unsigned int*));
+    count2_cpu = (unsigned int*) malloc(sizeof(unsigned int*));
+    updateObjectiveFunction<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx, count2_gpu);
+
+    cudaMemcpy(count2_cpu, count2_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
+    // Find the minimum value in the last row after copying the data to device memory (tableau_gpu)
+    thrust::device_vector<double> d_obj_tableau(tableau_gpu, tableau_gpu + (nRow * nCol));
+
+    // Pointing to the start of the last row
+    start = d_obj_tableau.begin() + (nRow - 1) * nCol;
+    end = d_obj_tableau.begin() + nRow * nCol;
+
+    // Finding the minimum element in the last row
+    auto min_obj_iter = thrust::min_element(start, end);
+
+    // Calculating the index of the minimum element in the last row
+    pivot_col_idx = min_obj_iter - start;
+
+    // Dereferencing the iterator to get the minimum value
+    min_value = *min_obj_iter;
+
+    std::cout << "count2: " << count2 << std::endl;
+    std::cout << "After step6: Min value in the last row: " << min_value << std::endl;
+    std::cout << "After step6: Index of min value in the last row: " << pivot_col_idx << std::endl;
 
 }
 
