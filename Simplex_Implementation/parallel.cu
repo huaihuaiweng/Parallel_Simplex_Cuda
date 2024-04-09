@@ -102,7 +102,8 @@ int main(int argc, char** argv) {
     cudaMalloc((void**)&ratios_gpu, (nRow - 1) * sizeof(double));
     cudaMemset((void*)ratios_gpu, HUGE_VAL, (nRow - 1) * sizeof(double));
     calcRatio<<<blks, NUM_THREADS>>>(tableau_gpu, ratios_gpu, count_gpu, pivot_column_idx, nCol);
-
+    cudaDeviceSynchronize();
+    
     cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
     if (count_cpu == nRow - 1) {
         std::cout << "There is no solution. Ending program..." << std::endl;
