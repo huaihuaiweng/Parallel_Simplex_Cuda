@@ -12,7 +12,7 @@
 #include <chrono> // Include chrono for timing
 
 
-#define NUM_THREADS 8200
+#define NUM_THREADS 256
 // #define DEBUG_MODE // Uncomment this line to enable debug mode
 
 double* tableau_gpu;
@@ -81,7 +81,7 @@ __global__ void updateObjectiveFunction(double* tableau_gpu, int nRow, int nCol,
     double pivot3 = -tableau_gpu[(nRow - 1) * nCol + pivot_col_idx];
     tableau_gpu[(nRow - 1) * nCol + tid] += pivot3 * tableau_gpu[pivot_row_idx * nCol + tid];
     if ((tid < nCol - 1) && tableau_gpu[(nRow - 1) * (nCol) + tid] < 0.0) {
-        printf("%d \n", tid);
+        // printf("%d \n", tid);
         atomicInc(count2_gpu, nCol - 1);
     }
 }
@@ -144,8 +144,8 @@ int main(int argc, char** argv) {
     // Initial cudaMalloc for all steps
     cudaMalloc((void**)&count_gpu, 1 * sizeof(unsigned int));
     cudaMalloc((void**)&ratios_gpu, (nRow - 1) * sizeof(double));
-    cudaMalloc((void**)&count2_gpu, 1 * sizeof(unsigned int*));
-    count2_cpu = (unsigned int*) malloc(sizeof(unsigned int*));
+    cudaMalloc((void**)&count2_gpu, 1 * sizeof(unsigned int));
+    count2_cpu = (unsigned int*) malloc(sizeof(unsigned int));
     count_cpu = (unsigned int*)malloc(sizeof(unsigned int));
     //
     // Start of step 3:
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
         initDoubleArrayToInf<<<blks, NUM_THREADS>>>(ratios_gpu, nRow - 1);
         calcRatio<<<blks, NUM_THREADS>>>(tableau_gpu, ratios_gpu, count_gpu, pivot_col_idx, nCol, nRow);
         // std::cout << "Test Step3:#1" << std::endl;
-        cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(count_cpu, count_gpu, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
         if (*count_cpu == nRow - 1) {
             std::cout << "There is no solution. Ending program..." << std::endl;
             return -1;
@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
         
         updateObjectiveFunction<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx, count2_gpu);
         cudaDeviceSynchronize();
-        cudaMemcpy(count2_cpu, count2_gpu, 1 * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(count2_cpu, count2_gpu, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
         // Find the minimum value in the last row after copying the data to device memory (tableau_gpu)
         thrust::device_vector<double> d_obj_tableau(tableau_gpu, tableau_gpu + (nRow * nCol));
 
@@ -228,18 +228,21 @@ int main(int argc, char** argv) {
         cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
 
         #ifdef DEBUG_MODE
-        std::cout << "After step6: Min value in the last row: " << min_value << std::endl;
-        std::cout << "After step6: Index of min value in the last row: " << pivot_col_idx << std::endl;
-        std::cout << "Updated matrix after step6" << std::endl;
-        for (int i = 0; i < nRow; ++i){
-            std::cout << i << "-th row ";
-            for (int j = 0; j < nCol; ++j){
-                std::cout << tableau_cpu[i * nCol + j] << " "; 
-            }
-            std::cout << std::endl;
-        }
-        std::cout << "count2: " << *count2_cpu << std::endl;
+        // std::cout << "After step6: Min value in the last row: " << min_value << std::endl;
+        // std::cout << "After step6: Index of min value in the last row: " << pivot_col_idx << std::endl;
+        // std::cout << "Updated matrix after step6" << std::endl;
+        // for (int i = 0; i < nRow; ++i){
+        //     std::cout << i << "-th row ";
+        //     for (int j = 0; j < nCol; ++j){
+        //         std::cout << tableau_cpu[i * nCol + j] << " "; 
+        //     }
+        //     std::cout << std::endl;
+        // }
         #endif
+        std::cout << "count2: " << *count2_cpu << std::endl;
+        // std::cout << "pivot_col_idx : " << pivot_col_idx << std::endl;
+        // std::cout << "pivot_row_idx : " << pivot_row_idx << std::endl;
+        // std::cout << "min_ratio_val : " << min_ratio_val << std::endl;
     } while (*count2_cpu != 0);
 
     std::cout << "Finished Algorithm:" << std::endl;
