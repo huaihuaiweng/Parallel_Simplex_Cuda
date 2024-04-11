@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 
     // Pointing to the start of the last row
     auto start = d_tableau.begin() + (nRow - 1) * nCol;
-    auto end = d_tableau.begin() + nRow * nCol;
+    auto end = d_tableau.end();
 
     // Finding the minimum element in the last row
     auto min_iter = thrust::min_element(start, end);
