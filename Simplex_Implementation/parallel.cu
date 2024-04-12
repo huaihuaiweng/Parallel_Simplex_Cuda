@@ -12,7 +12,7 @@
 #include <chrono> // Include chrono for timing
 
 
-#define NUM_THREADS 256
+#define NUM_THREADS 512
 // #define DEBUG_MODE // Uncomment this line to enable debug mode
 
 double* tableau_gpu;
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
         
         performRowOperations<<<blks, NUM_THREADS>>>(tableau_gpu, nRow, nCol, pivot_row_idx, pivot_col_idx);
         cudaDeviceSynchronize();
-        cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
+        // cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
         #ifdef DEBUG_MODE
         std::cout << "Updated matrix after step5" << std::endl;
         for (int i = 0; i < nRow; ++i){
@@ -225,9 +225,10 @@ int main(int argc, char** argv) {
 
         // Dereferencing the iterator to get the minimum value
         min_value = *min_obj_iter;
-        cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
 
         #ifdef DEBUG_MODE
+        //cudaMemcpy(tableau_cpu, tableau_gpu, nRow * nCol * sizeof(double), cudaMemcpyDeviceToHost);
         // std::cout << "After step6: Min value in the last row: " << min_value << std::endl;
         // std::cout << "After step6: Index of min value in the last row: " << pivot_col_idx << std::endl;
         // std::cout << "Updated matrix after step6" << std::endl;
