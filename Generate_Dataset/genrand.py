@@ -52,4 +52,5 @@ def genrand(m, n, d):
     # Combine into the simplex tableau format
     f = -c.transpose()  # Objective function (-c input for maximization problem)
     ppl = np.vstack([np.hstack([A.toarray(), np.eye(m), b.toarray()]), np.hstack([f, np.zeros((1, m + 1))])])
+    ppl = np.round(ppl)
     return ppl, f, A, b
